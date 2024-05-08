@@ -1,91 +1,30 @@
 mod fill;
 
-use glium::{
-    implement_vertex, index::PrimitiveType, program, texture::RawImage2d, uniform, Display,
-    IndexBuffer, Surface, Texture2d, VertexBuffer,
-};
 use structopt::StructOpt;
 use winit::{
     event::{ElementState, Event, KeyEvent, WindowEvent},
     event_loop::ControlFlow,
     keyboard::{Key, NamedKey},
+    window::Fullscreen,
 };
 
-#[derive(Copy, Clone)]
-pub struct Vertex {
-    position: [f32; 2],
-    tex_coords: [f32; 2],
-}
+fn run_glium(monitor: usize) -> Result<(), impl std::error::Error> {
+    // инициализировать окно в полноэкранном режиме с размерами dimensions
 
-fn run_glium(dimensions: (u32, u32)) -> Result<(), impl std::error::Error> {
-    // инициализировать окнов  полноэкранном режиме с размерами dimensions
     // 1. The **winit::EventLoop** for handling events.
     let event_loop = winit::event_loop::EventLoopBuilder::new().build().unwrap();
     // 2. Create a glutin context and glium Display
-    let (window, display) = glium::backend::glutin::SimpleWindowBuilder::new().build(&event_loop);
+    let (window, _display) = glium::backend::glutin::SimpleWindowBuilder::new().build(&event_loop);
 
-    implement_vertex!(Vertex, position, tex_coords);
+    // 3. Установить полноэкранный режим
+    let wh = window.available_monitors().skip(monitor).next().unwrap();
+    let fs = Fullscreen::Borderless(Some(wh));
+    window.set_fullscreen(Some(fs));
 
-    // 3. Буфер координат вершин для "экрана"
-    let vert_buffer = VertexBuffer::new(
-        &display,
-        &[
-            Vertex {
-                position: [-1.0, -1.0],
-                tex_coords: [0.0, 0.0],
-            },
-            Vertex {
-                position: [-1.0, 1.0],
-                tex_coords: [0.0, 1.0],
-            },
-            Vertex {
-                position: [1.0, 1.0],
-                tex_coords: [1.0, 1.0],
-            },
-            Vertex {
-                position: [1.0, -1.0],
-                tex_coords: [1.0, 0.0],
-            },
-        ],
-    )
-    .unwrap();
-
-    // 4. Буфер индексов вершин, чтобы построить прямоугольник
-    let idx_buf =
-        IndexBuffer::new(&display, PrimitiveType::TriangleStrip, &[1_u16, 2, 0, 3]).unwrap();
-
-    // 5. Шейдер
-    let program = program!(&display,
-        140 => {
-            vertex: "
-            #version 140
-            uniform mat4 matrix;
-            in vec2 position;
-            in vec2 tex_coords;
-            out vec2 v_tex_coords;
-            void main() {
-                gl_Position = matrix * vec4(position, 0.0, 1.0);
-                v_tex_coords = tex_coords;
-            }
-        ",
-
-            fragment: "
-            #version 140
-            uniform sampler2D tex;
-            in vec2 v_tex_coords;
-            out vec4 f_color;
-            void main() {
-                f_color = texture(tex, v_tex_coords);
-            }
-        "
-        },
-    )
-    .unwrap();
-
-    // 6. Цвет по умолчанию
+    // 3. Цвет по умолчанию
     let mut color = 0x101010;
 
-    // 7.  Запуск цикла отрисовки
+    // 5.  Запуск цикла отрисовки
     let mut close_requested = false;
     event_loop.run(move |event, elwt| {
         //println!("{:?}", event);
@@ -104,32 +43,38 @@ fn run_glium(dimensions: (u32, u32)) -> Result<(), impl std::error::Error> {
                     ..
                 } => match key.as_ref() {
                     Key::Character("g") => {
-                        color = (((color >> 8) as u8).saturating_add(1) as u32) << 8;
+                        color = ((((color >> 8) as u8).saturating_add(1) as u32) << 8)
+                            | (color & 0xFF00FF);
                         println!("#{:06X}", color);
                         fill::fill_window_with_color(&window, color);
                     }
                     Key::Character("h") => {
-                        color = (((color >> 8) as u8).saturating_sub(1) as u32) << 8;
+                        color = ((((color >> 8) as u8).saturating_sub(1) as u32) << 8)
+                            | (color & 0xFF00FF);
                         println!("#{:06X}", color);
                         fill::fill_window_with_color(&window, color);
                     }
                     Key::Character("r") => {
-                        color = (((color >> 16) as u8).saturating_add(1) as u32) << 16;
+                        color = ((((color >> 16) as u8).saturating_add(1) as u32) << 16)
+                            | (color & 0x00FFFF);
                         println!("#{:06X}", color);
                         fill::fill_window_with_color(&window, color);
                     }
                     Key::Character("t") => {
-                        color = (((color >> 16) as u8).saturating_sub(1) as u32) << 16;
+                        color = ((((color >> 16) as u8).saturating_sub(1) as u32) << 16)
+                            | (color & 0x00FFFF);
                         println!("#{:06X}", color);
                         fill::fill_window_with_color(&window, color);
                     }
                     Key::Character("b") => {
-                        color = (((color >> 0) as u8).saturating_add(1) as u32) << 0;
+                        color = ((((color >> 0) as u8).saturating_add(1) as u32) << 0)
+                            | (color & 0xFFFF00);
                         println!("#{:06X}", color);
                         fill::fill_window_with_color(&window, color);
                     }
                     Key::Character("n") => {
-                        color = (((color >> 0) as u8).saturating_sub(1) as u32) << 0;
+                        color = ((((color >> 0) as u8).saturating_sub(1) as u32) << 0)
+                            | (color & 0xFFFF00);
                         println!("#{:06X}", color);
                         fill::fill_window_with_color(&window, color);
                     }
@@ -181,21 +126,14 @@ fn run_glium(dimensions: (u32, u32)) -> Result<(), impl std::error::Error> {
 /// All: "A"+1/"S"-1;
 /// "O" - Reset color to #101010
 struct Cli {
-    /// width
-    #[structopt(long, default_value = "1280")]
-    width: u32,
-
-    /// heigth
-    #[structopt(long, default_value = "1024")]
-    heigth: u32,
+    /// monitor id
+    #[structopt(long, default_value = "0")]
+    monitor: usize,
 }
 
 fn main() -> Result<(), impl std::error::Error> {
     let args = Cli::from_args();
 
-    let width = args.width as u32;
-    let height = args.heigth as u32;
-
     // run glium
-    run_glium((width, height))
+    run_glium(args.monitor)
 }
