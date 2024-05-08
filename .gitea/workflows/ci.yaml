@@ -10,8 +10,8 @@ jobs:
     steps:
       - name: Install x86_64-w64-mingw32-gcc
         run: |
-          sudo apt update
-          sudo apt install -y gcc-mingw-w64-x86-64
+          apt update
+          apt install -y gcc-mingw-w64-x86-64
 
       - name: Install Rust nightly with x86_64-pc-windows-gnu target
         run: |
